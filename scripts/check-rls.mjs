@@ -17,7 +17,12 @@ if (!url || !key) {
   console.error('Faltan VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.');
   process.exit(2);
 }
-const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+// Las claves nuevas (sb_publishable_…) van solo en `apikey`; las antiguas (JWT) también como Bearer.
+const headers = { apikey: key, 'Content-Type': 'application/json', ...(key.startsWith('eyJ') ? { Authorization: `Bearer ${key}` } : {}) };
+if (key.startsWith('sb_secret_') || /service_role/.test(Buffer.from(key.split('.')[1] ?? '', 'base64').toString())) {
+  console.error('Esa es una clave SECRETA. Usa la clave pública (anon / publishable).');
+  process.exit(2);
+}
 const tables = ['profiles', 'categories', 'players', 'player_category_history', 'training_sessions', 'attendance', 'absence_rules', 'eligibility_exceptions', 'call_ups', 'guardians', 'player_guardians', 'audit_log'];
 let failures = 0;
 const fail = (msg) => { failures++; console.log(`  ✗ ${msg}`); };
