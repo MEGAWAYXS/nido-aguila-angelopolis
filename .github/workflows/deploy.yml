@@ -29,8 +29,9 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Ruta base = /<nombre-del-repositorio>/ para que Vite genere rutas correctas.
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          # Ruta base: "/" con dominio propio (variable VITE_BASE_PATH); si no existe,
+          # /<nombre-del-repositorio>/ para <usuario>.github.io/<repositorio>/.
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH || format('/{0}/', github.event.repository.name) }}
           # Valores PÚBLICOS (anon key). Se definen en Settings > Secrets and variables > Actions > Variables.
           # Si no existen, el sitio se publica en modo demostración.
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
