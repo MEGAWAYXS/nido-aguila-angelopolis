@@ -2,7 +2,7 @@
 
 Aplicación web de gestión para la academia de fútbol filial del Club América: categorías, jugadores, fotografías, asistencia diaria, faltas semanales, calendario y convocatorias. La usan entrenadores y personal desde celulares y computadoras. Los padres no tienen acceso en esta versión; el esquema ya contempla un futuro portal de familias.
 
-> **Estado actual (23 oct 2026):** publicado en https://megawayxs.github.io/nido-aguila-angelopolis/ y conectado a Supabase (proyecto `nido-aguila-angelopolis`, plan gratuito). La migración está aplicada, la cuenta compartida está autorizada como `coach` y las comprobaciones de acceso anónimo pasan. **Pendiente antes de cargar datos reales:** desactivar el registro abierto en Supabase (se dejó activo para la demo) y completar la lista de [docs/operacion.md](docs/operacion.md).
+> **Estado actual (23 oct 2026):** publicado en **https://nidoangelopolis.pages.dev** (Cloudflare Pages) y conectado a Supabase (proyecto `nido-aguila-angelopolis`, plan gratuito). La migración está aplicada, la cuenta compartida está autorizada como `coach` y las comprobaciones de acceso anónimo pasan. **Pendiente antes de cargar datos reales:** desactivar el registro abierto en Supabase (se dejó activo para la demo) y completar la lista de [docs/operacion.md](docs/operacion.md).
 
 ## 1. Arquitectura
 
@@ -14,12 +14,12 @@ Navegador (React + TypeScript + Vite, PWA)
  │    ├─ supabase/   Implementación real: PostgreSQL + Auth + Storage privado
  │    └─ demo/       Datos ficticios en memoria (sin backend)
  └─ public/          Escudo e iconos PWA
-GitHub Pages  →  solo archivos estáticos (sin datos)
+Cloudflare Pages →  solo archivos estáticos (sin datos); código en GitHub
 Supabase      →  datos, autenticación y fotografías, protegidos con RLS
 ```
 
 - **Modo de datos:** si existen `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, la app usa Supabase. Si no, arranca en **MODO DEMOSTRACIÓN**, claramente señalado, con datos ficticios **en memoria**: los cambios se pierden al recargar y no se sincronizan entre dispositivos (no se simula sincronización con localStorage).
-- **Rutas:** `HashRouter` (`/#/plantilla`) para que recargar o compartir enlaces funcione en GitHub Pages sin reescrituras.
+- **Rutas:** `HashRouter` (`/#/plantilla`) para que recargar o compartir enlaces funcione en cualquier hosting estático sin reescrituras.
 - **Seguridad:** la autorización vive en PostgreSQL (RLS). La interfaz oculta botones según el rol solo por comodidad.
 - **PWA:** instalable (manifest + service worker). Solo se guarda en caché la interfaz; los datos de Supabase nunca.
 
@@ -74,20 +74,23 @@ Abre http://localhost:5173. Sin `.env.local` entra en modo demostración.
 
 **Portal de familias (futuro):** existen `guardians` y `player_guardians` (con `portal_access` por jugador), con RLS activo y **sin políticas**: hoy nadie puede leerlas desde la app. Para activarlo habrá que añadir un rol `guardian` y políticas que limiten la lectura a los jugadores vinculados.
 
-## 4. Publicar en GitHub Pages (pendiente)
+## 4. Publicación (Cloudflare Pages)
 
-1. Crea un repositorio en GitHub, por ejemplo `nido-aguila-angelopolis`. Con GitHub Free, Pages requiere un repositorio **público**. Esto es seguro porque el repositorio no contiene datos ni secretos, pero revisa que nunca se suban respaldos ni CSV (ya están en `.gitignore`).
-2. Sube el código:
-   ```bash
-   git remote add origin https://github.com/USUARIO/nido-aguila-angelopolis.git
-   ```
-   ```bash
-   git push -u origin main
-   ```
-3. **Settings › Pages › Source:** elige *GitHub Actions*.
-4. **Settings › Secrets and variables › Actions › Variables:** crea `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. Son valores públicos. Si no los creas, se publica el modo demostración.
-5. Cada push a `main` ejecuta las pruebas, compila con la ruta base `/<repositorio>/` y publica en `https://USUARIO.github.io/nido-aguila-angelopolis/`.
-6. En Supabase › Authentication › URL Configuration, añade esa URL como *Site URL*.
+El código está en GitHub (`MEGAWAYXS/nido-aguila-angelopolis`) y **Cloudflare Pages** lo publica automáticamente en **https://nidoangelopolis.pages.dev** con cada push a `main`. Las vistas previas de otras ramas se publican en URL aparte.
+
+Configuración del proyecto `nidoangelopolis` en Cloudflare (Workers & Pages › nidoangelopolis › Settings):
+
+| Ajuste | Valor |
+|---|---|
+| Repositorio / rama de producción | `MEGAWAYXS/nido-aguila-angelopolis` / `main` |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Variables | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (clave **pública**), `VITE_BASE_PATH=/`, `NODE_VERSION=22` |
+
+- Si cambian las variables, hay que volver a desplegar (Deployments › *Retry deployment*) porque se incrustan al compilar.
+- Para usar un dominio propio (por ejemplo `nido.wayxs.mx`): Custom domains › *Set up a custom domain*. No requiere cambios de código.
+- El workflow de GitHub Actions (`.github/workflows/tests.yml`) solo ejecuta pruebas y build en cada push.
+- Si alguna vez se vuelve a GitHub Pages, el build necesita `VITE_BASE_PATH=/<repositorio>/`.
 
 ## 5. Reglas de faltas implementadas
 
@@ -108,7 +111,7 @@ Consulta [docs/operacion.md](docs/operacion.md): datos mínimos, respaldo semana
 | Servicio | Plan gratuito | Riesgo | Si se supera |
 |---|---|---|---|
 | Supabase Free | 500 MB de base de datos, 1 GB de archivos, 5 GB de egress, 50 000 MAU, 2 proyectos | **Se pausa tras 1 semana sin actividad** y **no incluye respaldos automáticos** | Pro desde 25 USD/mes: respaldos diarios de 7 días, 8 GB de disco, 100 GB de archivos. PITR desde 100 USD/mes |
-| GitHub Pages | Sitio de hasta 1 GB, 100 GB/mes de ancho de banda (límite blando) | Repositorio público en el plan Free | GitHub Pro (4 USD/mes) para Pages desde repositorio privado |
+| Cloudflare Pages | Sitios estáticos con ancho de banda ilimitado; 500 builds/mes en el plan gratuito | Ninguno relevante para este uso | Plan Pro de Cloudflare si se necesitan más builds |
 | Dominio propio | — | Opcional | Unos 15–25 USD/año |
 
 Para una academia, los datos (texto) ocupan pocos MB. Las fotografías son lo que más crece: con 300 jugadores a ~300 KB cada una son ~90 MB. **Recomendación:** mientras se use el plan gratuito, haz el respaldo manual semanal descrito en `docs/operacion.md`. Considera Pro cuando haya datos reales que no se puedan perder.

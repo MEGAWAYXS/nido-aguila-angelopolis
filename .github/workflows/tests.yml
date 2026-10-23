@@ -1,0 +1,27 @@
+name: Pruebas
+
+# La publicación la hace Cloudflare Pages (proyecto "nidoangelopolis"), que
+# compila cada push a main. Este workflow solo verifica que las pruebas y el
+# build pasen.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
