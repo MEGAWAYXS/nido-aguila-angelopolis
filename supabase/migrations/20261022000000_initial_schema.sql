@@ -313,6 +313,11 @@ alter table public.guardians enable row level security;
 alter table public.player_guardians enable row level security;
 alter table public.audit_log enable row level security;
 
+-- Privilegios explícitos (no dependen de "Automatically expose new tables"):
+-- authenticated puede intentar operar y RLS decide fila por fila.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+
 -- Defensa en profundidad: el rol anónimo no tiene ningún privilegio.
 revoke all on all tables in schema public from anon;
 revoke all on all sequences in schema public from anon;

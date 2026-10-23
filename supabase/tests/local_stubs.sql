@@ -22,6 +22,6 @@ grant select on storage.buckets to anon, authenticated;
 -- Supabase concede por defecto privilegios de tabla a anon y authenticated;
 -- se replican para comprobar que la migración los revoca y que RLS protege.
 grant usage on schema public to anon, authenticated;
-alter default privileges in schema public grant all on tables to anon, authenticated;
-alter default privileges in schema public grant all on sequences to anon, authenticated;
+-- (sin privilegios por defecto: la migración debe concederlos explícitamente)
+
 alter default privileges in schema public grant execute on functions to anon, authenticated;
