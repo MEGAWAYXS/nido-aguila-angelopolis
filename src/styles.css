@@ -143,6 +143,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .cell-none { background: var(--bg); color: var(--muted-2); }
 .cell-cancelled { background: var(--bg); color: var(--muted); text-decoration: line-through; }
 .cell-future { background: var(--bg); color: var(--muted); }
+.cell-unrecorded { background: #fff; color: var(--muted-2); border: 1px solid var(--line); }
 .cell-excused { outline: 2px solid var(--navy); outline-offset: -2px; }
 
 /* ---------- Tabla ---------- */

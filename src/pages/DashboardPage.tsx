@@ -26,7 +26,8 @@ export function DashboardPage() {
   const view = useMemo(() => {
     if (!data) return null;
     const cats = data.categories.filter((c) => c.status === 'active' && (!categoryId || c.id === categoryId));
-    const rows = buildReport(data, week, today, categoryId || undefined);
+    // El panel resume a los jugadores activos; los archivados solo aparecen en el reporte.
+    const rows = buildReport(data, week, today, categoryId || undefined).filter((r) => !r.archived);
     const perCat = cats.map((c) => {
       const counts: Record<AttendanceStatus | 'pending', number> = { present: 0, absent: 0, sick: 0, justified: 0, pending: 0 };
       const players = data.players.filter((p) => p.active && p.categoryId === c.id);

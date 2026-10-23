@@ -134,6 +134,32 @@ describe('flujo de la academia (modo demo)', async () => {
     expect(r.eligibility.effective).toBe('not_eligible');
   });
 
+  it('un archivado sigue en los reportes de las semanas en que tuvo registros', async () => {
+    const players = await ds.listPlayers();
+    const withRecords = players.find((p) => p.fullName === 'Una')!;
+    const noRecords = await ds.savePlayer({ fullName: 'Sin registros', birthDate: '2014-05-01', categoryId: cat.id, active: true });
+    await ds.setPlayerActive(withRecords.id, false);
+    await ds.setPlayerActive(noRecords.id, false);
+
+    const rows = buildReport(await loadWeek(ds, week), week, reportToday, cat.id);
+    const row = rows.find((r) => r.player.id === withRecords.id);
+    expect(row?.archived).toBe(true);
+    expect(row?.summary.pendingDates).toEqual([]);
+    expect(row?.days.some((d) => d.cell.kind === 'pending')).toBe(false);
+    expect(rows.some((r) => r.player.id === noRecords.id)).toBe(false);
+    // Conserva su convocatoria oficial de esa semana; el CSV lo marca como archivado.
+    expect(row?.final).toBe('DESCONVOCADO');
+    expect(reportToCsv(rows, week)).toContain('Una (archivado)');
+
+    // En una semana sin registros suyos no aparece.
+    const prev = buildReport(await loadWeek(ds, addDays(week, -7)), addDays(week, -7), reportToday, cat.id);
+    expect(prev.some((r) => r.player.id === withRecords.id)).toBe(false);
+
+    await ds.setPlayerActive(withRecords.id, true);
+    const back = buildReport(await loadWeek(ds, week), week, reportToday, cat.id).find((r) => r.player.id === withRecords.id);
+    expect(back?.archived).toBe(false);
+  });
+
   it('historial de cambio de categoría y archivar/reactivar', async () => {
     const other = await ds.saveCategory({ name: 'Otra', season: '2026–27', status: 'active' });
     const p = (await ds.listPlayers()).find((x) => x.fullName === 'Jugador Uno')!;

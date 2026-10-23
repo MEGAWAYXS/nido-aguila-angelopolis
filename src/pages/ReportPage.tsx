@@ -4,15 +4,15 @@ import { can, useAuth } from '../auth/AuthContext';
 import { WeekPicker } from '../components/WeekPicker';
 import { downloadFile, ErrorBox, Icon, Loading, Modal, toast } from '../components/ui';
 import { useWeekData } from '../components/useWeekData';
-import type { DayCell, FinalStatus } from '../domain/absences';
+import type { FinalStatus } from '../domain/absences';
 import { dayShort, formatDate, todayISO, weekDays, weekStartOf } from '../domain/dates';
-import { buildReport, CELL_TEXT, ELIGIBILITY_TEXT, reportToCsv, type ReportRow } from '../domain/report';
+import { buildReport, CELL_TEXT, ELIGIBILITY_TEXT, reportToCsv, type ReportCell, type ReportRow } from '../domain/report';
 import type { CallUpStatus, EligibilityDecision } from '../domain/types';
 import { dataService } from '../services';
 
-const CELL_SHORT: Record<string, string> = { present: 'PRES', absent: 'AUS', sick: 'ENF', justified: 'JUST', pending: 'PEND', none: '—', cancelled: 'CANC', future: 'PROG' };
+const CELL_SHORT: Record<string, string> = { present: 'PRES', absent: 'AUS', sick: 'ENF', justified: 'JUST', pending: 'PEND', none: '—', cancelled: 'CANC', future: 'PROG', unrecorded: 'S/R' };
 
-function Cell({ cell }: { cell: DayCell }) {
+function Cell({ cell }: { cell: ReportCell }) {
   const key = cell.kind === 'status' ? cell.status : cell.kind;
   const excused = cell.kind === 'status' && cell.status === 'absent' && !cell.computable;
   const title = `${CELL_TEXT[key]}${excused ? ' (justificación aprobada)' : ''}${cell.kind === 'status' && cell.reason ? ` · ${cell.reason}` : ''}`;
@@ -65,7 +65,7 @@ export function ReportPage() {
         <div className="toolbar no-print">
           <button type="button" className="btn" onClick={() => window.print()}><Icon name="print" size={18} /> Imprimir</button>
           <button type="button" className="btn" disabled={rows.length === 0} onClick={() => downloadFile(`reporte-${catName}-${week}.csv`, reportToCsv(rows, week))}><Icon name="download" size={18} /> Exportar CSV</button>
-          {can(user, 'manage') && <button type="button" className="btn btn-primary" disabled={rows.length === 0} onClick={() => setConfirming(true)}>Confirmar convocatoria</button>}
+          {can(user, 'manage') && <button type="button" className="btn btn-primary" disabled={!rows.some((r) => !r.archived)} onClick={() => setConfirming(true)}>Confirmar convocatoria</button>}
         </div>
       </div>
       <div className="toolbar no-print">
@@ -109,7 +109,7 @@ export function ReportPage() {
                   <td className="muted">{i + 1}</td>
                   <td className="muted" style={{ whiteSpace: 'nowrap' }}>{r.player.folio}</td>
                   <td className="jersey">{r.player.jerseyNumber ?? '—'}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}><Link to={`/plantilla/${r.player.id}`} style={{ fontWeight: 600, color: 'inherit' }}>{r.player.fullName}</Link></td>
+                  <td style={{ whiteSpace: 'nowrap' }}><Link to={`/plantilla/${r.player.id}`} style={{ fontWeight: 600, color: 'inherit' }}>{r.player.fullName}</Link>{r.archived && <span className="pill pill-gray" style={{ marginLeft: 6 }}>Archivado</span>}</td>
                   {r.days.map((d) => <td key={d.date} className="center" style={{ padding: '6px 3px' }}><Cell cell={d.cell} /></td>)}
                   <td className="center">
                     <b style={{ fontFamily: 'var(--display)', fontSize: 20 }}>{r.summary.absences}</b>
@@ -119,10 +119,10 @@ export function ReportPage() {
                     <span className={`pill ${ELIG_CLASS[r.eligibility.effective]}`}>{ELIGIBILITY_TEXT[r.eligibility.effective]}</span>
                     {r.eligibility.exception && <div className="small muted" title={r.eligibility.exception.reason}>Excepción · cálculo: {ELIGIBILITY_TEXT[r.eligibility.computed].toLowerCase()}</div>}
                     {r.summary.pendingDates.length > 0 && <div className="small muted">{r.summary.pendingDates.length} sin registro</div>}
-                    {can(user, 'manage') && <button type="button" className="btn btn-sm btn-ghost no-print" style={{ paddingLeft: 0 }} onClick={() => setExceptionFor(r)}>Excepción…</button>}
+                    {can(user, 'manage') && !r.archived && <button type="button" className="btn btn-sm btn-ghost no-print" style={{ paddingLeft: 0 }} onClick={() => setExceptionFor(r)}>Excepción…</button>}
                   </td>
                   <td>
-                    <span className={`pill ${FINAL_CLASS[r.final]}`}>{r.final}</span>
+                    {r.archived && !r.callUp ? <span className="pill pill-gray">Archivado</span> : <span className={`pill ${FINAL_CLASS[r.final]}`}>{r.final}</span>}
                     {r.callUp?.note && <div className="small muted">{r.callUp.note}</div>}
                   </td>
                 </tr>
@@ -137,7 +137,7 @@ export function ReportPage() {
         {rows[0]?.rule.countSick ? ', y también ENFERMO' : ''}{rows[0]?.rule.countJustified ? ', y también MOTIVO JUSTIFICADO' : ''}. Las sesiones canceladas o futuras y los registros pendientes no generan faltas.{' '}
         <Link to="/reglas" className="no-print">Configurar reglas</Link>
       </p>
-      {confirming && <ConfirmCallUps rows={rows} week={week} onClose={() => setConfirming(false)} onDone={() => { setConfirming(false); reload(); }} />}
+      {confirming && <ConfirmCallUps rows={rows.filter((r) => !r.archived)} week={week} onClose={() => setConfirming(false)} onDone={() => { setConfirming(false); reload(); }} />}
       {exceptionFor && <ExceptionModal row={exceptionFor} week={week} onClose={() => setExceptionFor(null)} onDone={() => { setExceptionFor(null); reload(); }} />}
     </>
   );
