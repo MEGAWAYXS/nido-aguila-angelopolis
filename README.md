@@ -2,7 +2,7 @@
 
 Aplicación web de gestión para la academia de fútbol filial del Club América: categorías, jugadores, fotografías, asistencia diaria, faltas semanales, calendario y convocatorias. La usan entrenadores y personal desde celulares y computadoras. Los padres no tienen acceso en esta versión; el esquema ya contempla un futuro portal de familias.
 
-> **Estado actual:** la interfaz y el modo demostración funcionan, y las pruebas pasan. El backend Supabase **todavía no está creado ni conectado**, y el sitio **todavía no está publicado**. Sigue los pasos de las secciones 3 y 4.
+> **Estado actual (23 oct 2026):** publicado en https://megawayxs.github.io/nido-aguila-angelopolis/ y conectado a Supabase (proyecto `nido-aguila-angelopolis`, plan gratuito). La migración está aplicada, la cuenta compartida está autorizada como `coach` y las comprobaciones de acceso anónimo pasan. **Pendiente antes de cargar datos reales:** desactivar el registro abierto en Supabase (se dejó activo para la demo) y completar la lista de [docs/operacion.md](docs/operacion.md).
 
 ## 1. Arquitectura
 
