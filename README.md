@@ -92,6 +92,15 @@ Configuración del proyecto `nidoangelopolis` en Cloudflare (Workers & Pages ›
 - El workflow de GitHub Actions (`.github/workflows/tests.yml`) solo ejecuta pruebas y build en cada push.
 - Si alguna vez se vuelve a GitHub Pages, el build necesita `VITE_BASE_PATH=/<repositorio>/`.
 
+### Modo sin conexión (Asistencia)
+
+- Al abrir **Asistencia** con internet se guarda en el teléfono (IndexedDB) una copia de jugadores y categorías y de la semana completa de sesiones y asistencias.
+- Sin conexión, Asistencia usa esa copia: se puede pasar lista, guardar y crear sesiones (con id generado en el teléfono, para no duplicarlas al reenviar).
+- Todo cambio se guarda primero en una cola del teléfono y se envía en orden cuando hay conexión (al volver internet, al abrir la app, al volver a ella y cada minuto). Un corte a mitad del envío no pierde nada; un error que no sea de conexión se muestra en la barra superior sin borrar nada.
+- La app reconoce al usuario sin conexión con la sesión guardada y su último perfil.
+- Al cerrar sesión se borra la copia y la cola (con aviso si hay cambios sin enviar).
+- El resto de pantallas necesita conexión.
+
 ### Soporte por WhatsApp
 
 El botón flotante **Soporte** abre WhatsApp con un mensaje que indica la pantalla y el usuario (nunca datos de jugadores). El número está en `src/config.ts` (`SUPPORT_WHATSAPP`, formato `52` + 10 dígitos); si se deja vacío, el botón no aparece.

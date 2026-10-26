@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Role, StaffUser } from '../domain/types';
 import { dataService } from '../services';
+import { clearOfflineData, outbox } from '../services/offline';
 
 interface AuthValue {
   user: StaffUser | null;
@@ -32,7 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     signIn: async (email, password) => setUser(await dataService.signIn(email, password)),
     signOut: async () => {
+      await outbox.refresh().catch(() => {});
+      const pending = outbox.state.pending;
+      if (pending > 0 && !window.confirm(`Hay ${pending} ${pending === 1 ? 'cambio' : 'cambios'} de asistencia guardado${pending === 1 ? '' : 's'} en este teléfono que aún no se ${pending === 1 ? 'envía' : 'envían'}. Si cierras sesión se perderán. ¿Cerrar sesión de todos modos?`)) return;
       await dataService.signOut();
+      // Privacidad: se borra la copia de jugadores y lo pendiente guardado en el teléfono.
+      await clearOfflineData().catch(() => {});
       setUser(null);
     },
   };

@@ -136,6 +136,10 @@ export class DemoService implements DataService {
     return this.clone(s);
   }
 
+  async insertSession(session: Session) {
+    if (!this.data.sessions.some((s) => s.id === session.id)) this.data.sessions.push(structuredClone(session));
+    return this.clone(session);
+  }
   async listAttendance(sessionIds: ID[]) {
     const set = new Set(sessionIds);
     return this.clone(this.data.attendance.filter((a) => set.has(a.sessionId)));

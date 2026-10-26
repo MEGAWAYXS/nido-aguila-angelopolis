@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { can, useAuth } from '../auth/AuthContext';
 import { ErrorBox, Icon, Loading, STATUS_META, toast, useAsync } from '../components/ui';
-import { formatDate, todayISO } from '../domain/dates';
+import { addDays, formatDate, todayISO, weekStartOf } from '../domain/dates';
 import type { Attendance, AttendanceStatus, Session } from '../domain/types';
 import { dataService } from '../services';
+import { offlineFirst, outbox, overlayAttendance, overlaySessions, pendingSessionIds } from '../services/offline';
 
 /** Suma minutos a una hora HH:MM (sin pasar de 23:59). */
 function addMinutes(time: string, minutes: number): string {
@@ -29,19 +30,34 @@ export function AttendancePage() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [newSession, setNewSession] = useState({ start: '17:00', end: '18:30', type: 'training' as Session['type'] });
 
+  // Con conexión carga del servidor y guarda copia en el teléfono; sin conexión usa la copia.
   const base = useAsync(async () => {
-    const [categories, players] = await Promise.all([dataService.listCategories(), dataService.listPlayers()]);
-    return { categories: categories.filter((c) => c.status === 'active'), players };
+    const { data, cachedAt } = await offlineFirst('asistencia:base', async () => {
+      const [categories, players] = await Promise.all([dataService.listCategories(), dataService.listPlayers()]);
+      return { categories, players };
+    });
+    return { categories: data.categories.filter((c) => c.status === 'active'), players: data.players, cachedAt };
   }, []);
   useEffect(() => {
     if (!categoryId && base.data?.categories[0]) setCategoryId(base.data.categories[0].id);
   }, [base.data, categoryId]);
 
+  // Se guarda la semana completa (todas las categorías) para poder cambiar de día sin conexión.
+  const week = weekStartOf(date);
+  const [outboxTick, setOutboxTick] = useState(0);
   const day = useAsync(async () => {
-    const sessions = (await dataService.listSessions(date, date)).filter((s) => s.categoryId === categoryId);
-    const attendance = await dataService.listAttendance(sessions.map((s) => s.id));
-    return { sessions, attendance };
-  }, [date, categoryId]);
+    const { data, cachedAt } = await offlineFirst(`asistencia:semana:${week}`, async () => {
+      const sessions = await dataService.listSessions(week, addDays(week, 6));
+      return { sessions, attendance: await dataService.listAttendance(sessions.map((s) => s.id)) };
+    });
+    const ops = await outbox.list();
+    const sessions = overlaySessions(data.sessions, ops).filter((s) => s.date === date && s.categoryId === categoryId).sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const ids = new Set(sessions.map((s) => s.id));
+    return { sessions, attendance: overlayAttendance(data.attendance, ops).filter((a) => ids.has(a.sessionId)), pending: pendingSessionIds(ops), cachedAt };
+  }, [week, date, categoryId, outboxTick]);
+
+  // Al terminar de enviar lo pendiente se recargan los datos del servidor.
+  useEffect(() => outbox.onSent(() => setOutboxTick((t) => t + 1)), []);
 
   useEffect(() => {
     const ss = day.data?.sessions ?? [];
@@ -77,6 +93,11 @@ export function AttendancePage() {
     setDirty(true);
   }
 
+  /** ¿Sigue en la cola del teléfono algo de esta sesión después de intentar enviarlo? */
+  async function stillPending(sessionIdToCheck: string) {
+    return (await outbox.list()).some((o) => (o.kind === 'attendance' ? o.sessionId : o.session.id) === sessionIdToCheck);
+  }
+
   async function save() {
     if (!session) return;
     setSaving(true);
@@ -84,10 +105,21 @@ export function AttendancePage() {
       const records = roster
         .filter((p) => drafts[p.id]?.status)
         .map((p) => ({ sessionId: session.id, playerId: p.id, status: drafts[p.id].status!, reason: drafts[p.id].reason, justificationApproved: drafts[p.id].status === 'absent' && drafts[p.id].approved }));
-      await dataService.saveAttendance(records);
-      if (session.status === 'scheduled' && session.date <= todayISO()) await dataService.saveSession({ ...session, status: 'done' });
+      // Primero queda guardado en el teléfono; luego se intenta enviar. Así un corte no hace perder nada.
+      await outbox.enqueue({
+        kind: 'attendance',
+        sessionId: session.id,
+        records,
+        markDone: session.status === 'scheduled' && session.date <= todayISO() ? session : undefined,
+        createdAt: new Date().toISOString(),
+      });
+      await outbox.flush();
       const pending = roster.length - records.length;
-      toast(`Asistencia guardada · ${records.length} registro(s)${pending ? ` · ${pending} pendiente(s)` : ''}`);
+      if (await stillPending(session.id)) {
+        toast(outbox.state.error ? `Guardado en este teléfono, pero no se pudo enviar: ${outbox.state.error}` : 'Sin conexión: guardado en este teléfono. Se enviará solo al volver internet.', !!outbox.state.error);
+      } else {
+        toast(`Asistencia guardada · ${records.length} registro(s)${pending ? ` · ${pending} pendiente(s)` : ''}`);
+      }
       setSavedAt(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }));
       day.reload();
     } catch (err) {
@@ -101,7 +133,9 @@ export function AttendancePage() {
     try {
       const cat = base.data?.categories.find((c) => c.id === categoryId);
       if (newSession.end && newSession.end <= newSession.start) return toast('La hora de fin debe ser posterior a la de inicio.', true);
-      const s = await dataService.saveSession({
+      // El id se genera en el teléfono para poder crearla sin conexión sin riesgo de duplicarla.
+      const s: Session = {
+        id: crypto.randomUUID(),
         categoryId,
         date,
         startTime: newSession.start,
@@ -109,8 +143,10 @@ export function AttendancePage() {
         type: newSession.type,
         status: 'scheduled',
         coachName: cat?.coachName,
-      });
-      toast('Sesión creada');
+      };
+      await outbox.enqueue({ kind: 'session', session: s, createdAt: new Date().toISOString() });
+      await outbox.flush();
+      toast((await stillPending(s.id)) ? 'Sin conexión: sesión guardada en este teléfono. Se enviará al volver internet.' : 'Sesión creada');
       setSessionId(s.id);
       day.reload();
     } catch (err) {
@@ -153,6 +189,14 @@ export function AttendancePage() {
         )}
       </div>
       {(base.error || day.error) && <ErrorBox message={(base.error || day.error)!} />}
+      {(base.data?.cachedAt || day.data?.cachedAt) && (
+        <div className="offline-note" role="status">
+          Sin conexión · mostrando la copia guardada en este teléfono ({new Date((day.data?.cachedAt ?? base.data?.cachedAt)!).toLocaleString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}). Lo que guardes se enviará al volver internet.
+        </div>
+      )}
+      {session && day.data?.pending.has(session.id) && (
+        <div className="offline-note pending" role="status">Esta lista tiene cambios guardados en el teléfono que aún no se envían.</div>
+      )}
       {(base.loading || day.loading) && !day.data && <Loading />}
 
       {day.data && day.data.sessions.length === 0 && (

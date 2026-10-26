@@ -49,6 +49,8 @@ export interface DataService {
   // Calendario
   listSessions(from: ISODate, to: ISODate): Promise<Session[]>;
   saveSession(input: Omit<Session, 'id'> & { id?: ID }): Promise<Session>;
+  /** Alta con id generado en el teléfono (modo sin conexión). Si ya existe, no hace nada. */
+  insertSession(session: Session): Promise<Session>;
 
   // Asistencia
   listAttendance(sessionIds: ID[]): Promise<Attendance[]>;

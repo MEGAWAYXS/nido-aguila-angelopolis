@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { dataService } from '../services';
+import { OfflineBar } from './OfflineBar';
 import { Icon } from './ui';
 
 const LOGO = `${import.meta.env.BASE_URL}escudo.png`;
@@ -70,6 +71,7 @@ export function Layout() {
               MODO DEMOSTRACIÓN · Datos ficticios en memoria: los cambios se pierden al recargar y no se comparten entre dispositivos.
             </div>
           )}
+          <OfflineBar />
           <Outlet />
         </main>
       </div>

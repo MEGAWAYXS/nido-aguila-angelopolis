@@ -18,6 +18,8 @@ import type {
   StaffUser,
 } from '../../domain/types';
 import type { DataService } from '../DataService';
+import { isNetworkError } from '../offline/outbox';
+import { getStore } from '../offline/store';
 
 // Filas tal como vienen de PostgreSQL (snake_case).
 type Row = Record<string, unknown>;
@@ -97,6 +99,7 @@ function toCallUp(r: Row): CallUp {
 /** Traduce errores de PostgREST/RLS a mensajes comprensibles. */
 function check<T>(res: { data: T; error: { message: string; code?: string } | null }): NonNullable<T> {
   if (res.error) {
+    if (isNetworkError(res.error)) throw new Error('Sin conexión a internet.');
     if (res.error.code === '42501' || /row-level security/i.test(res.error.message)) {
       throw new Error('No tienes permiso para realizar esta operación.');
     }
@@ -119,15 +122,32 @@ export class SupabaseService implements DataService {
 
   private async toStaff(user: User | null): Promise<StaffUser | null> {
     if (!user) return null;
-    const { data } = await this.sb.from('profiles').select('role, display_name, is_shared_account, active').eq('user_id', user.id).maybeSingle();
+    const { data, error } = await this.sb.from('profiles').select('role, display_name, is_shared_account, active').eq('user_id', user.id).maybeSingle();
+    if (error && isNetworkError(error)) throw new Error('Sin conexión a internet.');
     // Usuario autenticado pero sin perfil activo: no es personal autorizado.
     if (!data || !data.active) return null;
-    return { id: user.id, email: user.email ?? '', role: data.role, displayName: data.display_name || user.email || 'Personal', shared: data.is_shared_account };
+    const staff: StaffUser = { id: user.id, email: user.email ?? '', role: data.role, displayName: data.display_name || user.email || 'Personal', shared: data.is_shared_account };
+    // Copia para reconocer al usuario sin conexión (solo datos del perfil, sin contraseñas).
+    void getStore().then((st) => st.set('staff', staff)).catch(() => {});
+    return staff;
+  }
+
+  /** Sin conexión: la sesión guardada en el teléfono + el perfil de la última vez. */
+  private async offlineStaff(): Promise<StaffUser | null> {
+    const { data } = await this.sb.auth.getSession(); // lee la sesión local, no usa la red
+    const cached = await getStore().then((st) => st.get<StaffUser>('staff')).catch(() => undefined);
+    return data.session && cached?.id === data.session.user.id ? cached : null;
   }
 
   async getCurrentUser() {
-    const { data } = await this.sb.auth.getUser(); // valida el token contra el servidor
-    return this.toStaff(data.user);
+    const { data, error } = await this.sb.auth.getUser(); // valida el token contra el servidor
+    if (error && isNetworkError(error)) return this.offlineStaff();
+    try {
+      return await this.toStaff(data.user);
+    } catch (err) {
+      if (isNetworkError(err)) return this.offlineStaff();
+      throw err;
+    }
   }
   async signIn(email: string, password: string) {
     const { data, error } = await this.sb.auth.signInWithPassword({ email, password });
@@ -140,14 +160,17 @@ export class SupabaseService implements DataService {
     return staff;
   }
   async signOut() {
-    await this.sb.auth.signOut();
+    const { error } = await this.sb.auth.signOut();
+    // Sin conexión no se puede avisar al servidor: al menos se borra la sesión del teléfono.
+    if (error && isNetworkError(error)) await this.sb.auth.signOut({ scope: 'local' });
   }
   onAuthChange(cb: (u: StaffUser | null) => void) {
     const { data } = this.sb.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') cb(null);
       else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         // Fuera del callback para no bloquear el cliente de auth.
-        setTimeout(() => void this.toStaff(session?.user ?? null).then(cb), 0);
+        // Si falla por conexión se conserva el usuario actual (no se cierra la sesión).
+        setTimeout(() => void this.toStaff(session?.user ?? null).then(cb).catch(() => {}), 0);
       }
     });
     return () => data.subscription.unsubscribe();
@@ -216,6 +239,24 @@ export class SupabaseService implements DataService {
 
   async listSessions(from: ISODate, to: ISODate) {
     return check(await this.sb.from('training_sessions').select('*').gte('date', from).lte('date', to).order('date').order('start_time')).map(toSession);
+  }
+  private sessionRow(input: Omit<Session, 'id'>) {
+    return {
+      category_id: input.categoryId,
+      date: input.date,
+      start_time: input.startTime,
+      end_time: input.endTime || null,
+      type: input.type,
+      location: input.location || null,
+      coach_name: input.coachName || null,
+      status: input.status,
+      notes: input.notes || null,
+    };
+  }
+  async insertSession(session: Session) {
+    // ignoreDuplicates: reenviar la misma sesión (p. ej. tras un corte) no la duplica.
+    check(await this.sb.from('training_sessions').upsert({ id: session.id, ...this.sessionRow(session) }, { onConflict: 'id', ignoreDuplicates: true }));
+    return session;
   }
   async saveSession(input: Omit<Session, 'id'> & { id?: ID }) {
     const row = {

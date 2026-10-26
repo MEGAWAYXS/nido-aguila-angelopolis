@@ -190,6 +190,11 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .counts .count b { font-size: 20px; }
 }
 
+/* ---------- Modo sin conexión ---------- */
+.offline-note { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; background: #eef1f6; color: var(--navy); border: 1px solid var(--line-strong); border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 600; }
+.offline-note.pending { background: var(--justified-soft); color: var(--justified-ink); border-color: transparent; }
+.offline-note.error { background: var(--absent-soft); color: var(--absent-ink); border-color: transparent; }
+
 /* ---------- Botón de soporte ---------- */
 .support-fab { position: fixed; right: 20px; bottom: 20px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px 0 14px; border-radius: 999px; background: #1f7a4d; color: #fff; font-weight: 700; text-decoration: none; box-shadow: 0 6px 18px rgba(7, 19, 61, 0.25); }
 .support-fab:hover { background: #17633e; color: #fff; }
