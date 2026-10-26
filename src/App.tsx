@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-d
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { Layout } from './components/Layout';
 import { Loading, ToastHost } from './components/ui';
+import { SupportButton } from './components/SupportButton';
 import { UpdateBanner } from './components/UpdateBanner';
 import { AttendancePage } from './pages/AttendancePage';
 import { CalendarPage } from './pages/CalendarPage';
@@ -49,6 +50,7 @@ export function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <SupportButton />
       </HashRouter>
       <ToastHost />
       <UpdateBanner />

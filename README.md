@@ -92,6 +92,10 @@ Configuración del proyecto `nidoangelopolis` en Cloudflare (Workers & Pages ›
 - El workflow de GitHub Actions (`.github/workflows/tests.yml`) solo ejecuta pruebas y build en cada push.
 - Si alguna vez se vuelve a GitHub Pages, el build necesita `VITE_BASE_PATH=/<repositorio>/`.
 
+### Soporte por WhatsApp
+
+El botón flotante **Soporte** abre WhatsApp con un mensaje que indica la pantalla y el usuario (nunca datos de jugadores). El número está en `src/config.ts` (`SUPPORT_WHATSAPP`, formato `52` + 10 dígitos); si se deja vacío, el botón no aparece.
+
 ## 5. Reglas de faltas implementadas
 
 - Cuenta como falta solo **AUSENTE sin justificación aprobada**. ENFERMO y MOTIVO JUSTIFICADO no cuentan, salvo que la regla lo indique.

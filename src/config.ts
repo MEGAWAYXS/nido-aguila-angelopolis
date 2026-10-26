@@ -17,6 +17,8 @@ if (anonKey && isSecretKey(anonKey.trim())) {
   throw new Error('VITE_SUPABASE_ANON_KEY contiene una clave SECRETA. Usa la clave pública (anon/publishable).');
 }
 
+const SUPPORT_WHATSAPP = '524791034891';
+
 export const config = {
   supabaseUrl: url?.trim() || '',
   supabaseAnonKey: anonKey?.trim() || '',
@@ -24,4 +26,9 @@ export const config = {
     return Boolean(this.supabaseUrl && this.supabaseAnonKey);
   },
   photoBucket: 'player-photos',
+  /**
+   * WhatsApp de soporte en formato internacional sin "+" ni espacios (México: 52 + 10 dígitos).
+   * Es público: aparece en el enlace del botón. Vacío = el botón no se muestra.
+   */
+  supportWhatsApp: SUPPORT_WHATSAPP,
 };

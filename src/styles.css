@@ -190,6 +190,16 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .counts .count b { font-size: 20px; }
 }
 
+/* ---------- Botón de soporte ---------- */
+.support-fab { position: fixed; right: 20px; bottom: 20px; z-index: 40; display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px 0 14px; border-radius: 999px; background: #1f7a4d; color: #fff; font-weight: 700; text-decoration: none; box-shadow: 0 6px 18px rgba(7, 19, 61, 0.25); }
+.support-fab:hover { background: #17633e; color: #fff; }
+.support-fab.raised { bottom: 96px; }
+@media (max-width: 900px) {
+  .support-fab { right: 12px; bottom: 76px; width: 48px; padding: 0; justify-content: center; }
+  .support-fab span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .support-fab.raised { bottom: 172px; }
+}
+
 /* ---------- Aviso de versión nueva ---------- */
 .update-banner { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 70; background: var(--navy); color: #fff; border-radius: 12px; padding: 8px 8px 8px 16px; display: flex; gap: 12px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,0.25); font-weight: 600; max-width: calc(100vw - 24px); }
 
