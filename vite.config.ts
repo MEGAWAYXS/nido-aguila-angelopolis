@@ -13,7 +13,9 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        registerType: 'autoUpdate',
+        // La app avisa de versiones nuevas (components/UpdateBanner.tsx) en vez de quedarse con la vieja.
+        registerType: 'prompt',
+        injectRegister: false,
         includeAssets: ['icon-192.png', 'apple-touch-icon.png', 'escudo.png'],
         manifest: {
           name: 'Nido Águila Angelópolis',
@@ -34,6 +36,9 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // Solo se guarda en caché la interfaz. Los datos de Supabase nunca se cachean.
           globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+          // La versión nueva se activa al descargarse; UpdateBanner avisa para recargar.
+          skipWaiting: true,
+          clientsClaim: true,
           navigateFallbackDenylist: [/^\/auth/, /^\/rest/, /^\/storage/],
           runtimeCaching: [],
         },

@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-d
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import { Layout } from './components/Layout';
 import { Loading, ToastHost } from './components/ui';
+import { UpdateBanner } from './components/UpdateBanner';
 import { AttendancePage } from './pages/AttendancePage';
 import { CalendarPage } from './pages/CalendarPage';
 import { CategoriesPage } from './pages/CategoriesPage';
@@ -50,6 +51,7 @@ export function App() {
         </Routes>
       </HashRouter>
       <ToastHost />
+      <UpdateBanner />
     </AuthProvider>
   );
 }

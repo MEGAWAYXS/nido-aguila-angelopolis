@@ -190,6 +190,9 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .counts .count b { font-size: 20px; }
 }
 
+/* ---------- Aviso de versión nueva ---------- */
+.update-banner { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 70; background: var(--navy); color: #fff; border-radius: 12px; padding: 8px 8px 8px 16px; display: flex; gap: 12px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,0.25); font-weight: 600; max-width: calc(100vw - 24px); }
+
 /* ---------- Importación ---------- */
 .map-list { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .map-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 260px); gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eef1f6; }
