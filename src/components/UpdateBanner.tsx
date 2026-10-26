@@ -12,16 +12,22 @@ let pending = false;
 function start() {
   if (started || !('serviceWorker' in navigator)) return;
   started = true;
+  const announce = () => {
+    pending = true;
+    notify();
+  };
   const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     // En la primera instalación no hay versión anterior: no hace falta avisar.
     if (!hadController) return;
-    pending = true;
-    notify();
+    announce();
   });
   registerSW({
     // Sin esto espera al evento "load", que ya ocurrió cuando React monta este componente.
     immediate: true,
+    // Sin estos dos, la librería recarga la página por su cuenta al activarse la versión nueva.
+    onNeedReload: announce,
+    onNeedRefresh: announce,
     onRegisteredSW(_url, registration) {
       if (!registration) return;
       const check = () => void registration.update().catch(() => {});
