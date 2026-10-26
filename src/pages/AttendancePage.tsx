@@ -5,6 +5,13 @@ import { formatDate, todayISO } from '../domain/dates';
 import type { Attendance, AttendanceStatus, Session } from '../domain/types';
 import { dataService } from '../services';
 
+/** Suma minutos a una hora HH:MM (sin pasar de 23:59). */
+function addMinutes(time: string, minutes: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const total = Math.min(23 * 60 + 59, h * 60 + m + minutes);
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
 type Draft = { status?: AttendanceStatus; reason: string; approved: boolean };
 const ORDER: AttendanceStatus[] = ['present', 'absent', 'sick', 'justified'];
 
@@ -20,6 +27,7 @@ export function AttendancePage() {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [newSession, setNewSession] = useState({ start: '17:00', end: '18:30', type: 'training' as Session['type'] });
 
   const base = useAsync(async () => {
     const [categories, players] = await Promise.all([dataService.listCategories(), dataService.listPlayers()]);
@@ -92,7 +100,16 @@ export function AttendancePage() {
   async function createSession() {
     try {
       const cat = base.data?.categories.find((c) => c.id === categoryId);
-      const s = await dataService.saveSession({ categoryId, date, startTime: '17:00', type: 'training', status: 'scheduled', coachName: cat?.coachName });
+      if (newSession.end && newSession.end <= newSession.start) return toast('La hora de fin debe ser posterior a la de inicio.', true);
+      const s = await dataService.saveSession({
+        categoryId,
+        date,
+        startTime: newSession.start,
+        endTime: newSession.end || undefined,
+        type: newSession.type,
+        status: 'scheduled',
+        coachName: cat?.coachName,
+      });
       toast('Sesión creada');
       setSessionId(s.id);
       day.reload();
@@ -141,7 +158,26 @@ export function AttendancePage() {
       {day.data && day.data.sessions.length === 0 && (
         <div className="card empty stack" style={{ alignItems: 'center' }}>
           <span>No hay sesión programada para esta categoría en esta fecha. Sin sesión no se genera ninguna falta.</span>
-          {editable && <button type="button" className="btn btn-primary" onClick={createSession}><Icon name="plus" /> Crear entrenamiento 17:00</button>}
+          {editable && (
+            <div className="toolbar" style={{ justifyContent: 'center' }}>
+              <label className="field"><span>Tipo</span>
+                <select className="select" value={newSession.type} onChange={(e) => setNewSession({ ...newSession, type: e.target.value as Session['type'] })}>
+                  <option value="training">Entrenamiento</option>
+                  <option value="match">Partido</option>
+                </select>
+              </label>
+              <label className="field"><span>Hora de inicio</span>
+                <input className="input" type="time" required value={newSession.start}
+                  onChange={(e) => e.target.value && setNewSession({ ...newSession, start: e.target.value, end: addMinutes(e.target.value, 90) })} />
+              </label>
+              <label className="field"><span>Hora de fin (opcional)</span>
+                <input className="input" type="time" value={newSession.end} onChange={(e) => setNewSession({ ...newSession, end: e.target.value })} />
+              </label>
+              <button type="button" className="btn btn-primary" onClick={createSession}>
+                <Icon name="plus" /> Crear {newSession.type === 'match' ? 'partido' : 'entrenamiento'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
