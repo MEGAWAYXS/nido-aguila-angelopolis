@@ -62,8 +62,8 @@ export function PlayerDetailPage() {
 
   const facts: [string, string][] = [
     ['Folio', player.folio],
-    ['Nacimiento', formatDate(player.birthDate)],
-    ['Edad', `${ageOn(player.birthDate)} años`],
+    ['Nacimiento', player.birthDate ? formatDate(player.birthDate) : '—'],
+    ['Edad', player.birthDate ? `${ageOn(player.birthDate)} años` : '—'],
     ['Peso', player.weightKg ? `${player.weightKg} kg` : '—'],
     ['Estatura', player.heightCm ? `${(player.heightCm / 100).toFixed(2)} m` : '—'],
     ['Categoría', cat(player.categoryId)],

@@ -40,7 +40,7 @@ describe('flujo de la academia (modo demo)', async () => {
   it('2. crea jugadores con folio único y calcula la edad', async () => {
     const p = await ds.savePlayer({ fullName: 'Jugador Uno', birthDate: '2014-03-14', categoryId: cat.id, active: true, jerseyNumber: 7 });
     expect(p.folio).toMatch(/^NAA-\d{4}$/);
-    expect(ageOn(p.birthDate, '2026-10-22')).toBe(12);
+    expect(ageOn(p.birthDate!, '2026-10-22')).toBe(12);
     await expect(ds.savePlayer({ fullName: 'Duplicado', birthDate: '2014-01-01', categoryId: cat.id, active: true, folio: p.folio })).rejects.toThrow(/folio/);
   });
 

@@ -7,7 +7,7 @@ import { ErrorBox, Modal, toast } from './ui';
 type Draft = PlayerInput & { id?: string };
 
 function emptyDraft(categoryId: string): Draft {
-  return { fullName: '', birthDate: '', categoryId, active: true, nationality: '' };
+  return { fullName: '', categoryId, active: true, nationality: '' };
 }
 
 export function PlayerForm({ player, categories, defaultCategoryId, onClose, onSaved }: {
@@ -30,7 +30,7 @@ export function PlayerForm({ player, categories, defaultCategoryId, onClose, onS
     e.preventDefault();
     setError(null);
     if (!d.categoryId) return setError('Selecciona una categoría.');
-    if (d.birthDate > new Date().toISOString().slice(0, 10)) return setError('La fecha de nacimiento no puede ser futura.');
+    if (d.birthDate && d.birthDate > new Date().toISOString().slice(0, 10)) return setError('La fecha de nacimiento no puede ser futura.');
     setSaving(true);
     try {
       const h = heightText.trim() ? normalizeHeightCm(Number(heightText.replace(',', '.'))) : undefined;
@@ -55,8 +55,8 @@ export function PlayerForm({ player, categories, defaultCategoryId, onClose, onS
           <label className="field"><span>Folio</span><input className="input" value={d.folio ?? ''} onChange={(e) => set('folio', e.target.value)} placeholder="Automático si se deja vacío" /></label>
           <label className="field"><span>Número de camiseta</span><input className="input" type="number" min={0} max={999} inputMode="numeric" value={d.jerseyNumber ?? ''} onChange={(e) => set('jerseyNumber', e.target.value === '' ? undefined : Number(e.target.value))} /></label>
           <label className="field">
-            <span>Fecha de nacimiento * {d.birthDate && <b style={{ color: 'var(--navy)' }}>· {ageOn(d.birthDate)} años</b>}</span>
-            <input className="input" type="date" required value={d.birthDate} onChange={(e) => set('birthDate', e.target.value)} />
+            <span>Fecha de nacimiento {d.birthDate && <b style={{ color: 'var(--navy)' }}>· {ageOn(d.birthDate)} años</b>}</span>
+            <input className="input" type="date" value={d.birthDate ?? ''} onChange={(e) => set('birthDate', e.target.value || undefined)} />
           </label>
           <label className="field"><span>Peso (kg)</span><input className="input" type="number" step="0.1" min={1} max={199} inputMode="decimal" value={d.weightKg ?? ''} onChange={(e) => set('weightKg', e.target.value === '' ? undefined : Number(e.target.value))} /></label>
           <label className="field"><span>Estatura (m o cm)</span><input className="input" inputMode="decimal" value={heightText} onChange={(e) => setHeightText(e.target.value)} placeholder="1.48 o 148" /></label>

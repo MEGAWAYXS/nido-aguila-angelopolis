@@ -8,6 +8,7 @@ import type {
   EligibilityException,
   ID,
   Player,
+  PlayerInput,
   Session,
   StaffUser,
 } from '../../domain/types';
@@ -97,6 +98,11 @@ export class DemoService implements DataService {
     this.data.players.push(p);
     this.history.push({ id: this.id('hist'), playerId: p.id, toCategoryId: p.categoryId, changedAt: this.now(), reason: 'Alta' });
     return this.clone(p);
+  }
+  async createPlayers(inputs: PlayerInput[]) {
+    const out: Player[] = [];
+    for (const input of inputs) out.push(await this.savePlayer(input));
+    return out;
   }
   async setPlayerActive(id: ID, active: boolean) {
     const p = this.data.players.find((x) => x.id === id);

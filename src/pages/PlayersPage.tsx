@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { can, useAuth } from '../auth/AuthContext';
+import { ImportPlayers } from '../components/ImportPlayers';
 import { PlayerForm } from '../components/PlayerForm';
 import { PlayerPhoto } from '../components/PlayerPhoto';
 import { ErrorBox, Icon, Loading, useAsync } from '../components/ui';
@@ -19,6 +20,7 @@ export function PlayersPage() {
   const [categoryId, setCategoryId] = useState(params.get('categoria') ?? '');
   const [state, setState] = useState<'active' | 'inactive' | 'all'>('active');
   const creating = params.get('nuevo') === '1';
+  const importing = params.get('importar') === '1';
 
   const list = useMemo(() => {
     if (!data) return [];
@@ -40,7 +42,10 @@ export function PlayersPage() {
           <p>{list.length} jugador{list.length === 1 ? '' : 'es'} en la vista</p>
         </div>
         {can(user, 'write') && (
-          <button type="button" className="btn btn-primary" onClick={() => setParams({ nuevo: '1' })}><Icon name="plus" /> Nuevo jugador</button>
+          <div className="row wrap">
+            <button type="button" className="btn" onClick={() => setParams({ importar: '1' })}><Icon name="download" /> Importar desde Excel</button>
+            <button type="button" className="btn btn-primary" onClick={() => setParams({ nuevo: '1' })}><Icon name="plus" /> Nuevo jugador</button>
+          </div>
         )}
       </div>
       <div className="toolbar">
@@ -70,13 +75,21 @@ export function PlayersPage() {
               <div style={{ padding: '12px 14px 14px' }}>
                 <b style={{ fontSize: 16 }}>{p.fullName}</b>
                 <div className="small muted">{p.folio} · {catName(p.categoryId)}</div>
-                <div className="small muted">{[p.position, `${ageOn(p.birthDate)} años`].filter(Boolean).join(' · ')}</div>
+                <div className="small muted">{[p.position, p.birthDate && `${ageOn(p.birthDate)} años`].filter(Boolean).join(' · ')}</div>
                 {!p.active && <span className="pill pill-gray" style={{ marginTop: 6 }}>Archivado</span>}
               </div>
             </Link>
           ))}
           {list.length === 0 && <div className="empty" style={{ gridColumn: '1 / -1' }}>No hay jugadores que coincidan.</div>}
         </div>
+      )}
+      {importing && data && (
+        <ImportPlayers
+          categories={data.categories}
+          players={data.players}
+          onClose={() => setParams({})}
+          onDone={() => { setParams({}); reload(); }}
+        />
       )}
       {creating && data && (
         <PlayerForm

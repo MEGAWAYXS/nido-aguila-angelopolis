@@ -38,6 +38,8 @@ export interface DataService {
   listPlayers(): Promise<Player[]>;
   getPlayer(id: ID): Promise<Player | null>;
   savePlayer(input: PlayerInput & { id?: ID }, changeReason?: string): Promise<Player>;
+  /** Alta masiva (importación). Los que no traen folio reciben uno automático. */
+  createPlayers(inputs: PlayerInput[]): Promise<Player[]>;
   setPlayerActive(id: ID, active: boolean): Promise<void>;
   listCategoryHistory(playerId: ID): Promise<CategoryChange[]>;
   uploadPlayerPhoto(playerId: ID, file: File): Promise<string>;

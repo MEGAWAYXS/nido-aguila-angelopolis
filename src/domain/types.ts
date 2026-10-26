@@ -35,7 +35,8 @@ export interface Player {
   fullName: string;
   nickname?: string;
   jerseyNumber?: number;
-  birthDate: ISODate;
+  /** Opcional: las bases importadas pueden no tenerla. */
+  birthDate?: ISODate;
   weightKg?: number;
   heightCm?: number;
   categoryId: ID;

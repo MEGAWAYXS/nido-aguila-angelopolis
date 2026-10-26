@@ -190,6 +190,12 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .counts .count b { font-size: 20px; }
 }
 
+/* ---------- Importación ---------- */
+.map-list { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.map-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 260px); gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eef1f6; }
+.map-row:last-child { border-bottom: none; }
+@media (max-width: 560px) { .map-row { grid-template-columns: 1fr; gap: 6px; } }
+
 /* ---------- Modal y aviso ---------- */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(7, 19, 61, 0.55); z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 40px 14px; overflow-y: auto; }
 .modal { background: var(--white); border-radius: 16px; width: 100%; max-width: 720px; padding: 22px; display: flex; flex-direction: column; gap: 16px; }

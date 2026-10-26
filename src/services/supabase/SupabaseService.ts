@@ -38,7 +38,7 @@ function toPlayer(r: Row): Player {
     fullName: String(r.full_name),
     nickname: s(r.nickname),
     jerseyNumber: n(r.jersey_number),
-    birthDate: String(r.birth_date),
+    birthDate: s(r.birth_date),
     weightKg: n(r.weight_kg),
     heightCm: n(r.height_cm),
     categoryId: String(r.category_id),
@@ -55,7 +55,7 @@ function fromPlayer(p: PlayerInput): Row {
     full_name: p.fullName.trim(),
     nickname: p.nickname || null,
     jersey_number: p.jerseyNumber ?? null,
-    birth_date: p.birthDate,
+    birth_date: p.birthDate || null,
     weight_kg: p.weightKg ?? null,
     height_cm: p.heightCm ?? null,
     position: p.position || null,
@@ -181,6 +181,15 @@ export class SupabaseService implements DataService {
       check(await this.sb.rpc('change_player_category', { p_player: input.id, p_category: input.categoryId, p_reason: changeReason ?? null }));
     }
     return (await this.getPlayer(input.id))!;
+  }
+  async createPlayers(inputs: PlayerInput[]) {
+    const out: Player[] = [];
+    // Por lotes: cada lote es una sola petición (y una transacción en PostgreSQL).
+    for (let i = 0; i < inputs.length; i += 200) {
+      const rows = inputs.slice(i, i + 200).map((p) => ({ ...fromPlayer(p), category_id: p.categoryId }));
+      out.push(...check(await this.sb.from('players').insert(rows).select()).map(toPlayer));
+    }
+    return out;
   }
   async setPlayerActive(id: ID, active: boolean) {
     check(await this.sb.from('players').update({ active }).eq('id', id).select('id').single());
