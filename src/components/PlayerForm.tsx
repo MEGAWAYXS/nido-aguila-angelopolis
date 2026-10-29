@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ageOn, normalizeHeightCm } from '../domain/dates';
 import type { Category, Player, PlayerInput } from '../domain/types';
 import { dataService } from '../services';
+import { shrinkPhoto } from '../services/photo';
 import { ErrorBox, Modal, toast } from './ui';
 
 type Draft = PlayerInput & { id?: string };
@@ -36,7 +37,8 @@ export function PlayerForm({ player, categories, defaultCategoryId, onClose, onS
       const h = heightText.trim() ? normalizeHeightCm(Number(heightText.replace(',', '.'))) : undefined;
       if (h !== undefined && (Number.isNaN(h) || h < 50 || h > 250)) throw new Error('Estatura no válida. Escribe por ejemplo 1.48 o 148.');
       const saved = await dataService.savePlayer({ ...d, heightCm: h }, reason || undefined);
-      if (photo) await dataService.uploadPlayerPhoto(saved.id, photo);
+      // Se reduce antes de subir (≈ 800 px, JPEG): pesa unas 15–20 veces menos.
+      if (photo) await dataService.uploadPlayerPhoto(saved.id, await shrinkPhoto(photo));
       toast(player ? 'Ficha actualizada' : `Jugador creado · folio ${saved.folio}`);
       onSaved(saved);
     } catch (err) {
@@ -73,7 +75,7 @@ export function PlayerForm({ player, categories, defaultCategoryId, onClose, onS
             </select>
           </label>
           <label className="field"><span>Nacionalidad (opcional)</span><input className="input" value={d.nationality ?? ''} onChange={(e) => set('nationality', e.target.value)} /></label>
-          <label className="field"><span>Fotografía</span><input className="input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></label>
+          <label className="field"><span>Fotografía</span><input className="input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} /></label>
         </div>
         {categoryChanged && (
           <label className="field"><span>Motivo del cambio de categoría (queda en el historial)</span><input className="input" value={reason} onChange={(e) => setReason(e.target.value)} /></label>
