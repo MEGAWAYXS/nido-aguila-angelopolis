@@ -41,6 +41,8 @@ export interface DataService {
   /** Alta masiva (importación). Los que no traen folio reciben uno automático. */
   createPlayers(inputs: PlayerInput[]): Promise<Player[]>;
   setPlayerActive(id: ID, active: boolean): Promise<void>;
+  /** Eliminación definitiva: jugador, asistencias, convocatorias, excepciones, historial y foto. */
+  deletePlayer(id: ID): Promise<void>;
   listCategoryHistory(playerId: ID): Promise<CategoryChange[]>;
   uploadPlayerPhoto(playerId: ID, file: File): Promise<string>;
   /** URL temporal (firmada) para mostrar una fotografía privada. */

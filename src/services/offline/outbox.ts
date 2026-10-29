@@ -19,6 +19,9 @@ export interface OutboxState {
 
 type Service = Pick<DataService, 'insertSession' | 'saveAttendance' | 'saveSession'>;
 
+/** El jugador o la sesión ya no existe (p. ej. se eliminó desde otro dispositivo). */
+export const MISSING_REFERENCE = 'El jugador o la sesión ya no existe.';
+
 /** ¿El error se debe a falta de conexión (y por tanto conviene reintentar después)? */
 export function isNetworkError(err: unknown): boolean {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
@@ -111,7 +114,13 @@ export class Outbox {
           try {
             await this.apply(op);
           } catch (err) {
-            if (!isNetworkError(err)) this.set({ error: err instanceof Error ? err.message : String(err) });
+            const message = err instanceof Error ? err.message : String(err);
+            if (message === MISSING_REFERENCE) {
+              // Lo que se eliminó mientras tanto no se puede enviar: se descarta para no bloquear el resto.
+              await this.store.removeOp(op.id);
+              continue;
+            }
+            if (!isNetworkError(err)) this.set({ error: message });
             break;
           }
           await this.store.removeOp(op.id);

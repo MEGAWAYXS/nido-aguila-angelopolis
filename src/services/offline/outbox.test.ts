@@ -85,6 +85,24 @@ describe('cola de envío sin conexión', () => {
   });
 });
 
+describe('jugador eliminado con asistencia pendiente', () => {
+  it('descarta lo que ya no se puede enviar y sigue con el resto', async () => {
+    const ds = new DemoService();
+    const box = new Outbox(createMemoryStore(), ds, () => false);
+    const [day] = await ds.listSessions('2000-01-01', '2100-01-01');
+    await box.enqueue({ kind: 'attendance', sessionId: day.id, records: [{ sessionId: day.id, playerId: 'ply-102', status: 'present' }], createdAt: now });
+    await box.enqueue({ kind: 'attendance', sessionId: day.id, records: [{ sessionId: day.id, playerId: 'ply-103', status: 'sick' }], createdAt: now });
+    await ds.deletePlayer('ply-102'); // se elimina desde otro dispositivo antes de enviar
+    const online = new Outbox(createMemoryStore(), ds, () => true);
+    for (const op of await box.list()) await online.enqueue(op);
+    await online.flush();
+    await online.flush();
+    expect(online.state.pending).toBe(0);
+    expect(online.state.error).toBeNull();
+    expect((await ds.listAttendance([day.id])).find((a) => a.playerId === 'ply-103')?.status).toBe('sick');
+  });
+});
+
 describe('mostrar lo pendiente en pantalla', () => {
   it('aplica sesiones creadas sin conexión y asistencias no enviadas sobre los datos guardados', () => {
     const saved: Attendance[] = [{ id: 'a1', sessionId: session.id, playerId: 'p1', status: 'absent', justificationApproved: false, updatedAt: '2026-10-26T10:00:00Z' }];

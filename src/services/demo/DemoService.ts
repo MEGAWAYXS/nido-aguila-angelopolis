@@ -13,6 +13,7 @@ import type {
   StaffUser,
 } from '../../domain/types';
 import type { DataService } from '../DataService';
+import { MISSING_REFERENCE } from '../offline/outbox';
 import { buildSeed, type DemoData } from './seed';
 
 /**
@@ -104,6 +105,16 @@ export class DemoService implements DataService {
     for (const input of inputs) out.push(await this.savePlayer(input));
     return out;
   }
+  async deletePlayer(id: ID) {
+    const p = this.data.players.find((x) => x.id === id);
+    if (!p) throw new Error('Jugador no encontrado.');
+    this.data.players = this.data.players.filter((x) => x.id !== id);
+    this.data.attendance = this.data.attendance.filter((a) => a.playerId !== id);
+    this.exceptions = this.exceptions.filter((e) => e.playerId !== id);
+    this.callUps = this.callUps.filter((c) => c.playerId !== id);
+    this.history = this.history.filter((h) => h.playerId !== id);
+    if (p.photoPath) this.photos.delete(p.photoPath);
+  }
   async setPlayerActive(id: ID, active: boolean) {
     const p = this.data.players.find((x) => x.id === id);
     if (p) p.active = active;
@@ -149,6 +160,10 @@ export class DemoService implements DataService {
   }
   async saveAttendance(records: AttendanceInput[]) {
     const out: Attendance[] = [];
+    // Igual que la base de datos real: no se aceptan registros de jugadores o sesiones inexistentes.
+    if (records.some((r) => !this.data.players.some((p) => p.id === r.playerId) || !this.data.sessions.some((s) => s.id === r.sessionId))) {
+      throw new Error(MISSING_REFERENCE);
+    }
     for (const r of records) {
       const existing = this.data.attendance.find((a) => a.sessionId === r.sessionId && a.playerId === r.playerId);
       const next: Attendance = {

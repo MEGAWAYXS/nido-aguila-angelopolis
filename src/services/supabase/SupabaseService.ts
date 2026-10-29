@@ -18,7 +18,7 @@ import type {
   StaffUser,
 } from '../../domain/types';
 import type { DataService } from '../DataService';
-import { isNetworkError } from '../offline/outbox';
+import { isNetworkError, MISSING_REFERENCE } from '../offline/outbox';
 import { getStore } from '../offline/store';
 
 // Filas tal como vienen de PostgreSQL (snake_case).
@@ -104,6 +104,7 @@ function check<T>(res: { data: T; error: { message: string; code?: string } | nu
       throw new Error('No tienes permiso para realizar esta operación.');
     }
     if (res.error.code === '23505') throw new Error('Ya existe un registro con ese valor (duplicado).');
+    if (res.error.code === '23503') throw new Error(MISSING_REFERENCE);
     throw new Error(res.error.message);
   }
   // Sin error, PostgREST devuelve datos (o null en maybeSingle/delete, que se tratan aparte).
@@ -213,6 +214,11 @@ export class SupabaseService implements DataService {
       out.push(...check(await this.sb.from('players').insert(rows).select()).map(toPlayer));
     }
     return out;
+  }
+  async deletePlayer(id: ID) {
+    const photo: string | null = check(await this.sb.rpc('delete_player', { p_player: id }));
+    // La foto vive en el almacenamiento privado: se borra aparte (si falla, queda huérfana pero inaccesible).
+    if (photo) await this.sb.storage.from(config.photoBucket).remove([photo]);
   }
   async setPlayerActive(id: ID, active: boolean) {
     check(await this.sb.from('players').update({ active }).eq('id', id).select('id').single());

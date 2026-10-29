@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { can, useAuth } from '../auth/AuthContext';
 import { PlayerForm } from '../components/PlayerForm';
 import { PlayerPhoto } from '../components/PlayerPhoto';
-import { ErrorBox, Icon, Loading, StatusPill, toast, useAsync } from '../components/ui';
+import { ErrorBox, Icon, Loading, Modal, StatusPill, toast, useAsync } from '../components/ui';
 import { resolveEligibility, resolveRule, summarizePlayerWeek } from '../domain/absences';
 import { addDays, ageOn, formatDate, formatWeek, todayISO, weekStartOf } from '../domain/dates';
 import { ELIGIBILITY_TEXT } from '../domain/report';
@@ -15,6 +15,8 @@ export function PlayerDetailPage() {
   const { id = '' } = useParams();
   const { user } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const navigate = useNavigate();
   const today = todayISO();
   const week = weekStartOf(today);
 
@@ -90,6 +92,9 @@ export function PlayerDetailPage() {
           <div className="row wrap">
             <button type="button" className="btn btn-accent" onClick={() => setEditing(true)}><Icon name="edit" size={16} /> Editar ficha</button>
             <button type="button" className="btn" style={{ background: 'transparent', color: '#fff', borderColor: '#4a5578' }} onClick={toggleActive}>{player.active ? 'Archivar' : 'Reactivar'}</button>
+            {can(user, 'manage') && (
+              <button type="button" className="btn" style={{ background: 'transparent', color: '#ffb4ab', borderColor: '#8c1c13' }} onClick={() => setDeleting(true)}>Eliminar</button>
+            )}
           </div>
         )}
       </section>
@@ -156,9 +161,70 @@ export function PlayerDetailPage() {
         </section>
       </div>
 
+      {deleting && (
+        <DeletePlayerModal
+          name={player.fullName}
+          folio={player.folio}
+          onClose={() => setDeleting(false)}
+          onArchive={player.active ? async () => { setDeleting(false); await toggleActive(); } : undefined}
+          onConfirm={async () => {
+            await dataService.deletePlayer(player.id);
+            toast(`${player.fullName} se eliminó definitivamente`);
+            navigate('/plantilla', { replace: true });
+          }}
+        />
+      )}
       {editing && (
         <PlayerForm player={player} categories={categories} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); reload(); }} />
       )}
     </>
+  );
+}
+
+/** Confirmación de borrado definitivo: hay que escribir el nombre del jugador. */
+function DeletePlayerModal({ name, folio, onClose, onConfirm, onArchive }: {
+  name: string;
+  folio: string;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+  onArchive?: () => Promise<void>;
+}) {
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const matches = typed.trim().toLocaleLowerCase('es-MX') === name.trim().toLocaleLowerCase('es-MX');
+
+  async function confirm() {
+    setBusy(true);
+    setError(null);
+    try {
+      await onConfirm();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal title="Eliminar jugador" onClose={onClose}>
+      <p style={{ margin: 0 }}>Vas a eliminar a <b>{name}</b> (folio {folio}) de forma <b>definitiva</b>. También se borrarán sus asistencias, convocatorias, excepciones, historial de categorías y su fotografía. <b>No se puede deshacer.</b></p>
+      {onArchive && (
+        <div className="card small" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ flex: '1 1 240px' }}>Si el jugador dejó la academia, es mejor <b>archivarlo</b>: deja de aparecer pero se conserva su historial.</span>
+          <button type="button" className="btn btn-sm" disabled={busy} onClick={() => void onArchive()}>Archivar en su lugar</button>
+        </div>
+      )}
+      <label className="field">
+        <span>Para confirmar, escribe el nombre del jugador: <b style={{ color: 'var(--navy)' }}>{name}</b></span>
+        <input className="input" id="confirmar-eliminar" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
+      </label>
+      {error && <ErrorBox message={error} />}
+      <div className="modal-foot">
+        <button type="button" className="btn" onClick={onClose} disabled={busy}>Cancelar</button>
+        <button type="button" className="btn btn-danger" style={matches ? { background: 'var(--absent)', color: '#fff', borderColor: 'var(--absent)' } : undefined} disabled={!matches || busy} onClick={() => void confirm()}>
+          {busy ? 'Eliminando…' : 'Eliminar definitivamente'}
+        </button>
+      </div>
+    </Modal>
   );
 }

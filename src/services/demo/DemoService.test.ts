@@ -160,6 +160,19 @@ describe('flujo de la academia (modo demo)', async () => {
     expect(back?.archived).toBe(false);
   });
 
+  it('eliminar un jugador borra también sus asistencias, excepciones y convocatorias', async () => {
+    const p = await ds.savePlayer({ fullName: 'Para Eliminar', birthDate: '2014-05-01', categoryId: cat.id, active: true });
+    await ds.saveAttendance([{ sessionId: s[1].id, playerId: p.id, status: 'absent' }]);
+    await ds.addException({ playerId: p.id, weekStart: week, decision: 'eligible', reason: 'Prueba' });
+    await ds.confirmCallUps(week, [{ playerId: p.id, status: 'called' }]);
+    await ds.deletePlayer(p.id);
+    expect(await ds.getPlayer(p.id)).toBeNull();
+    expect((await ds.listPlayerAttendance(p.id))).toHaveLength(0);
+    expect((await ds.listPlayerExceptions(p.id))).toHaveLength(0);
+    expect((await ds.listPlayerCallUps(p.id))).toHaveLength(0);
+    await expect(ds.deletePlayer(p.id)).rejects.toThrow();
+  });
+
   it('historial de cambio de categoría y archivar/reactivar', async () => {
     const other = await ds.saveCategory({ name: 'Otra', season: '2026–27', status: 'active' });
     const p = (await ds.listPlayers()).find((x) => x.fullName === 'Jugador Uno')!;

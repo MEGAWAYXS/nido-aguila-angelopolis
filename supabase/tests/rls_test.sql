@@ -175,4 +175,62 @@ begin
   raise notice 'OK 6: restricciones (regla global única, umbrales, lunes, bucket privado)';
 end $$;
 
+-- ===== 7. Eliminación definitiva de jugadores =====
+insert into public.players (id, full_name, birth_date, category_id, photo_path) values
+  ('44444444-4444-4444-4444-444444444444', 'Jugador A Eliminar', '2014-05-05', '11111111-1111-1111-1111-111111111111', '44444444/foto.jpg');
+insert into public.attendance (session_id, player_id, status) values ('33333333-3333-3333-3333-333333333333', '44444444-4444-4444-4444-444444444444', 'absent');
+insert into public.eligibility_exceptions (player_id, week_start, decision, reason) values ('44444444-4444-4444-4444-444444444444', '2026-10-19', 'eligible', 'Prueba');
+insert into public.call_ups (player_id, week_start, status) values ('44444444-4444-4444-4444-444444444444', '2026-10-19', 'called');
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$ begin
+  begin
+    perform public.delete_player('44444444-4444-4444-4444-444444444444');
+    raise exception 'FALLO: anon pudo eliminar';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000e';
+do $$ begin
+  begin
+    perform public.delete_player('44444444-4444-4444-4444-444444444444');
+    raise exception 'FALLO: viewer pudo eliminar';
+  exception when insufficient_privilege then null;
+  end;
+  -- El borrado directo sigue reservado a admin (coach/viewer no borran por la tabla).
+  delete from public.players where id = '44444444-4444-4444-4444-444444444444';
+end $$;
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000c';
+do $$
+declare v_photo text;
+begin
+  delete from public.players where id = '44444444-4444-4444-4444-444444444444';
+  if not exists (select 1 from public.players where id = '44444444-4444-4444-4444-444444444444') then
+    raise exception 'FALLO: coach borró directamente por la tabla';
+  end if;
+  v_photo := public.delete_player('44444444-4444-4444-4444-444444444444');
+  if v_photo is distinct from '44444444/foto.jpg' then raise exception 'FALLO: no devolvió la foto (%)', v_photo; end if;
+end $$;
+reset role;
+do $$ begin
+  if exists (select 1 from public.players where id = '44444444-4444-4444-4444-444444444444') then raise exception 'FALLO: el jugador sigue existiendo'; end if;
+  if exists (select 1 from public.attendance where player_id = '44444444-4444-4444-4444-444444444444') then raise exception 'FALLO: quedaron asistencias'; end if;
+  if exists (select 1 from public.call_ups where player_id = '44444444-4444-4444-4444-444444444444') then raise exception 'FALLO: quedaron convocatorias'; end if;
+  if exists (select 1 from public.eligibility_exceptions where player_id = '44444444-4444-4444-4444-444444444444') then raise exception 'FALLO: quedaron excepciones'; end if;
+  if (select count(*) from public.audit_log where (record_id = '44444444-4444-4444-4444-444444444444' or new_data::text like '%Jugador A Eliminar%' or old_data::text like '%Jugador A Eliminar%' or new_data ->> 'player_id' = '44444444-4444-4444-4444-444444444444' or old_data ->> 'player_id' = '44444444-4444-4444-4444-444444444444') and action <> 'DELETE_DEFINITIVO') <> 0 then
+    raise exception 'FALLO: la bitácora conserva datos del jugador eliminado';
+  end if;
+  if (select count(*) from public.audit_log where action = 'DELETE_DEFINITIVO' and record_id = '44444444-4444-4444-4444-444444444444' and new_data ? 'folio' and not (new_data ? 'full_name')) <> 1 then
+    raise exception 'FALLO: falta el registro mínimo de eliminación';
+  end if;
+  raise notice 'OK 7: eliminar jugador solo coordinación; borra todo y deja un registro sin datos personales';
+end $$;
+
 select 'TODAS LAS PRUEBAS RLS PASARON' as resultado;
